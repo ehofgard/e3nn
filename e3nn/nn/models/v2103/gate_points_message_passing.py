@@ -94,7 +94,9 @@ class MessagePassing(torch.nn.Module):
         }
 
         self.layers = torch.nn.ModuleList()
-
+        self.gradients_dict = {}
+        self.val_dict = {}
+        
         for _ in range(layers):
             irreps_scalars = o3.Irreps(
                 [
@@ -131,7 +133,7 @@ class MessagePassing(torch.nn.Module):
                 irreps_node, self.irreps_node_attr, self.irreps_edge_attr, self.irreps_node_output, fc_neurons, num_neighbors
             )
         )
-        
+
         for lay in self.layers:
             lay.register_full_backward_hook(self.save_input_gradients)
     
