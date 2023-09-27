@@ -96,7 +96,7 @@ class MessagePassing(torch.nn.Module):
         self.layers = torch.nn.ModuleList()
         self.gradients_dict = {}
         self.val_dict = {}
-        
+
         for _ in range(layers):
             irreps_scalars = o3.Irreps(
                 [
@@ -148,7 +148,8 @@ class MessagePassing(torch.nn.Module):
     def forward(self, node_features, node_attr, edge_src, edge_dst, edge_attr, edge_scalars) -> torch.Tensor:
         for lay in self.layers:
             node_features = lay(node_features, node_attr, edge_src, edge_dst, edge_attr, edge_scalars)
-
+            self.val_dict[lay] = node_features.clone().detach()
+            
         return node_features
 
 
