@@ -58,6 +58,9 @@ class MessagePassing(torch.nn.Module):
         number of neurons per layers in the fully connected network
         first layer and hidden layers but not the output layer
     """
+    def save_input_gradients(self, module, grad_input, grad_output):
+        # Store the gradients along with an identifier for the layer
+        self.gradients_dict[module] = grad_output[0]
 
     def __init__(
         self,
@@ -128,6 +131,17 @@ class MessagePassing(torch.nn.Module):
                 irreps_node, self.irreps_node_attr, self.irreps_edge_attr, self.irreps_node_output, fc_neurons, num_neighbors
             )
         )
+        
+        for lay in self.layers:
+            lay.register_full_backward_hook(self.save_input_gradients)
+    
+    def get_gradients(self):
+        # Retrieve and return the stored gradients
+        return self.gradients_dict
+
+    def get_vals(self):
+        # Return values after each layer
+        return self.val_dict
 
     def forward(self, node_features, node_attr, edge_src, edge_dst, edge_attr, edge_scalars) -> torch.Tensor:
         for lay in self.layers:
