@@ -26,6 +26,7 @@ class SimpleNetwork(torch.nn.Module):
         layers: int = 3,
         lmax: int = 2,
         pool_nodes: bool = True,
+        relaxed: bool = False,
     ) -> None:
         super().__init__()
 
@@ -34,6 +35,7 @@ class SimpleNetwork(torch.nn.Module):
         self.number_of_basis = 10
         self.num_nodes = num_nodes
         self.pool_nodes = pool_nodes
+        self.relaxed = relaxed
 
         irreps_node_hidden = o3.Irreps([(mul, (l, p)) for l in range(lmax + 1) for p in [-1, 1]])
 
@@ -46,6 +48,7 @@ class SimpleNetwork(torch.nn.Module):
             layers=layers,
             fc_neurons=[self.number_of_basis, 100],
             num_neighbors=num_neighbors,
+            relaxed = relaxed
         )
 
         self.irreps_in = self.mp.irreps_node_input

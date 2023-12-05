@@ -34,7 +34,8 @@ class Convolution(torch.nn.Module):
     """
 
     def __init__(
-        self, irreps_node_input, irreps_node_attr, irreps_edge_attr, irreps_node_output, fc_neurons, num_neighbors
+        self, irreps_node_input, irreps_node_attr, irreps_edge_attr, irreps_node_output, fc_neurons, num_neighbors,
+        relaxed
     ) -> None:
         super().__init__()
         self.irreps_node_input = o3.Irreps(irreps_node_input)
@@ -42,7 +43,9 @@ class Convolution(torch.nn.Module):
         self.irreps_edge_attr = o3.Irreps(irreps_edge_attr)
         self.irreps_node_output = o3.Irreps(irreps_node_output)
         self.num_neighbors = num_neighbors
+        self.relaxed = relaxed
 
+        # don't put relaxed here?
         self.sc = FullyConnectedTensorProduct(self.irreps_node_input, self.irreps_node_attr, self.irreps_node_output)
 
         self.lin1 = FullyConnectedTensorProduct(self.irreps_node_input, self.irreps_node_attr, self.irreps_node_input)
@@ -69,19 +72,25 @@ class Convolution(torch.nn.Module):
             internal_weights=False,
             shared_weights=False,
         )
+        
         self.fc = FullyConnectedNet(fc_neurons + [tp.weight_numel], torch.nn.functional.silu)
         self.tp = tp
 
         self.lin2 = FullyConnectedTensorProduct(irreps_mid, self.irreps_node_attr, self.irreps_node_output)
         self.lin3 = FullyConnectedTensorProduct(irreps_mid, self.irreps_node_attr, "0e")
 
+        if relaxed:
+            self.relaxed_weights = torch.nn.Parameter(torch.ones(1,(self.irreps_edge_attr.lmax+1)**2))
+
     def forward(self, node_input, node_attr, edge_src, edge_dst, edge_attr, edge_scalars) -> torch.Tensor:
         weight = self.fc(edge_scalars)
-
+        
         node_self_connection = self.sc(node_input, node_attr)
         node_features = self.lin1(node_input, node_attr)
-
-        edge_features = self.tp(node_features[edge_src], edge_attr, weight)
+        if self.relaxed:
+            edge_features = self.tp(node_features[edge_src], self.relaxed_weights*edge_attr, weight)
+        else:
+            edge_features = self.tp(node_features[edge_src],edge_attr,weight)
         node_features = scatter(edge_features, edge_dst, dim=0, dim_size=node_input.shape[0]).div(self.num_neighbors**0.5)
 
         node_conv_out = self.lin2(node_features, node_attr)

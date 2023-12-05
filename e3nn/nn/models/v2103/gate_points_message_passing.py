@@ -69,6 +69,7 @@ class MessagePassing(torch.nn.Module):
         layers,
         fc_neurons,
         num_neighbors,
+        relaxed,
     ) -> None:
         super().__init__()
         self.num_neighbors = num_neighbors
@@ -78,6 +79,7 @@ class MessagePassing(torch.nn.Module):
         self.irreps_node_output = o3.Irreps(irreps_node_output)
         self.irreps_node_attr = o3.Irreps(irreps_node_attr)
         self.irreps_edge_attr = o3.Irreps(irreps_edge_attr)
+        self.relaxed = relaxed
 
         irreps_node = self.irreps_node_input
 
@@ -118,14 +120,16 @@ class MessagePassing(torch.nn.Module):
                 irreps_gated,  # gated tensors
             )
             conv = Convolution(
-                irreps_node, self.irreps_node_attr, self.irreps_edge_attr, gate.irreps_in, fc_neurons, num_neighbors
+                irreps_node, self.irreps_node_attr, self.irreps_edge_attr, gate.irreps_in, fc_neurons, num_neighbors,
+                self.relaxed
             )
             irreps_node = gate.irreps_out
             self.layers.append(Compose(conv, gate))
 
         self.layers.append(
             Convolution(
-                irreps_node, self.irreps_node_attr, self.irreps_edge_attr, self.irreps_node_output, fc_neurons, num_neighbors
+                irreps_node, self.irreps_node_attr, self.irreps_edge_attr, self.irreps_node_output, fc_neurons, num_neighbors,
+                self.relaxed
             )
         )
 
